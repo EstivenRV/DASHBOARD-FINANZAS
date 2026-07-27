@@ -58,6 +58,25 @@ npm start
 
 Ahora abre `http://localhost:4000` y la aplicación servirá los archivos estáticos y las rutas API (`/api/frankfurter/*`, `/api/coingecko/*`) desde el mismo origen, evitando CORS en producción.
 
+## Despliegue en Vercel
+
+Este proyecto ya incluye funciones serverless para Vercel en:
+
+- `api/frankfurter/[...path].js`
+- `api/coingecko/[...path].js`
+
+Con eso, en producción en Vercel las rutas `/api/*` funcionan sin depender de `server/index.js`.
+
+Pasos:
+
+1. Importa el repositorio en Vercel.
+2. Framework preset: **Vite**.
+3. Build command: `npm run build`.
+4. Output directory: `dist`.
+5. Deploy.
+
+No necesitas definir `VITE_BACKEND_URL` para Vercel si usas las rutas relativas `/api/...` (ya configuradas en el frontend).
+
 ## Notas y recomendaciones
 
 - El proxy implementado en `server/index.js`:
@@ -78,7 +97,3 @@ Ahora abre `http://localhost:4000` y la aplicación servirá los archivos estát
 - `npm run build` — compila la aplicación para producción
 - `npm start` / `npm run server` — inicia el servidor Express (proxy + sirve `dist/` si existe)
 - `npm run lint` — ejecuta linter (oxlint)
-
-## Desarrollo adicional
-
-Si quieres que implemente la persistencia de caché (Redis) o un script de arranque con PM2 para producción, dímelo y lo preparo.
