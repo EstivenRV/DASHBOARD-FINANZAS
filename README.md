@@ -77,6 +77,9 @@ Pasos:
 
 No necesitas definir `VITE_BACKEND_URL` para Vercel si usas las rutas relativas `/api/...` (ya configuradas en el frontend).
 
+Importante: en Vercel, deja `VITE_BACKEND_URL` vacío (o elimínalo).  
+Si apuntas a `http://localhost:4000`, el frontend en producción fallará con `Failed to fetch`.
+
 ## Notas y recomendaciones
 
 - El proxy implementado en `server/index.js`:

@@ -53,9 +53,14 @@ type BtcTrendPoint = {
 
 const REFRESH_INTERVAL_MS = 30_000
 
-// Backend base URL: set VITE_BACKEND_URL in .env (e.g. http://localhost:4000) to use the proxy server.
-// If empty, the app will use relative '/api/...' paths (useful when backend is same origin or Vite proxy is used).
-const BACKEND = (import.meta.env.VITE_BACKEND_URL ?? '').replace(/\/$/, '')
+// Backend base URL: set VITE_BACKEND_URL in local dev (e.g. http://localhost:4000) to use the proxy server.
+// In production, if it points to localhost by mistake, ignore it and use relative '/api/...' paths.
+const rawBackend = import.meta.env.VITE_BACKEND_URL ?? ''
+const normalizedBackend = rawBackend.replace(/\/$/, '')
+const BACKEND =
+  import.meta.env.PROD && /^https?:\/\/localhost(?::\d+)?$/i.test(normalizedBackend)
+    ? ''
+    : normalizedBackend
 function withBackend(path: string) {
   return BACKEND ? `${BACKEND}${path}` : path
 }
