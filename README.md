@@ -79,6 +79,3 @@ Ahora abre `http://localhost:4000` y la aplicación servirá los archivos estát
 - `npm start` / `npm run server` — inicia el servidor Express (proxy + sirve `dist/` si existe)
 - `npm run lint` — ejecuta linter (oxlint)
 
-## Desarrollo adicional
-
-Si quieres que implemente la persistencia de caché (Redis) o un script de arranque con PM2 para producción, dímelo y lo preparo.
