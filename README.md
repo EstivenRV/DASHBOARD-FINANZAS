@@ -62,8 +62,9 @@ Ahora abre `http://localhost:4000` y la aplicación servirá los archivos estát
 
 Este proyecto ya incluye funciones serverless para Vercel en:
 
-- `api/frankfurter/[...path].js`
-- `api/coingecko/[...path].js`
+- `api/frankfurter.js`
+- `api/coingecko.js`
+- `vercel.json` con rewrites para enrutar `/api/frankfurter/*` y `/api/coingecko/*`
 
 Con eso, en producción en Vercel las rutas `/api/*` funcionan sin depender de `server/index.js`.
 

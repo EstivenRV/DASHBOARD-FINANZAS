@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/frankfurter/:path*",
+      "destination": "/api/frankfurter?path=:path*"
+    },
+    {
+      "source": "/api/coingecko/:path*",
+      "destination": "/api/coingecko?path=:path*"
+    }
+  ]
+}
