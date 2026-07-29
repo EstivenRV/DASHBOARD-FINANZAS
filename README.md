@@ -1,62 +1,79 @@
-## VERCEL
-https://dashboard-finanzas-azure.vercel.app
+# Dashboard de finanzas e información de mercado
 
-## Incluye
+Este proyecto es un dashboard minimalista pensado como una vista informativa para seguir divisas, criptomonedas y contexto económico de forma rápida.
 
-- Selector de moneda base y moneda de referencia para convertir montos entre USD, EUR, MXN, COP, ARS, BRL y GBP.
-- Tendencia histórica de USD/EUR frente a la moneda elegida para entender si el dólar o el euro suben o bajan.
-- Mercado cripto y series de tiempo con [Binance API](https://developers.binance.com/docs/binance-spot-api-docs/rest-api).
-- Gráficas con Recharts:
-  - Área: USD/EUR frente a la moneda seleccionada (20 días)
-  - Línea: precio de BTC por hora
-  - Barras: comparación rápida entre varias monedas
-- Diseño minimalista orientado a información útil en lugar de un panel de finanzas ficticio.
+No está pensado como un sistema de cuentas bancarias reales, sino como una herramienta visual para entender:
+- cuánto vale una moneda frente a otra,
+- cómo convertir montos entre distintas monedas,
+- cómo se mueve el dólar o el euro en el tiempo,
+- y qué pasa con criptomonedas como Bitcoin, Ethereum y Solana.
 
-## Ejecutar
+## Qué incluye
 
-Instalar dependencias y ejecutar en modo desarrollo (Vite):
+- Selector de moneda base y moneda de referencia.
+- Conversión editable de montos entre monedas como USD, EUR, MXN, COP, ARS, BRL y GBP.
+- Gráfica histórica para comparar USD/EUR frente a la moneda seleccionada.
+- Visualización rápida del precio de BTC y otras criptomonedas.
+- Diseño limpio, minimalista y enfocado en la información.
+
+## Tecnologías
+
+- React + TypeScript + Vite
+- Recharts para visualizaciones
+- Express para proxy local
+- Vercel Serverless Functions para despliegue en producción
+
+## Ejecutar localmente
+
+Instala dependencias:
 
 ```bash
 npm install
+```
+
+Inicia el frontend:
+
+```bash
 npm run dev
 ```
 
-En desarrollo el frontend hace peticiones directamente al origen. Para evitar problemas de CORS y obtener datos de las APIs externas, se puede ejecutar el proxy local que también sirve la build en producción:
-
-1. Ejecutar el proxy local (Express):
+Si quieres que el frontend use un proxy local para evitar problemas de CORS, ejecuta también:
 
 ```bash
 npm run server
-# o
-npm start
 ```
 
-2. (Opcional) Configurar la app para que use el proxy en desarrollo mediante la variable de entorno VITE_BACKEND_URL:
+Y opcionalmente configura una variable de entorno:
 
-Crea un archivo `.env` en la raíz del proyecto con:
-
-```
+```bash
 VITE_BACKEND_URL=http://localhost:4000
 ```
 
-y reinicia `npm run dev`.
+## Build y producción
 
-## Build y servir en producción
-
-1. Generar la build de Vite:
+Genera la build:
 
 ```bash
 npm run build
 ```
 
-2. Iniciar el servidor Express que sirve la build y proxifica las APIs:
+Sirve la app localmente con el proxy:
 
 ```bash
 npm start
-# escucha en http://localhost:4000
 ```
 
-Ahora abre `http://localhost:4000` y la aplicación servirá los archivos estáticos y las rutas API (`/api/frankfurter/*`, `/api/binance/*`, `/api/rates/latest`) desde el mismo origen, evitando CORS en producción.
+Esto levantará un servidor en `http://localhost:4000` y servirá la app junto con las rutas API necesarias.
 
-- `npm start` / `npm run server` — inicia el servidor Express (proxy + sirve `dist/` si existe)
-- `npm run lint` — ejecuta linter (oxlint)
+## Despliegue en Vercel
+
+El proyecto está preparado para desplegarse en Vercel usando las rutas API dentro de la carpeta `api/` y el archivo `vercel.json`.
+
+## Scripts útiles
+
+```bash
+npm run dev      # modo desarrollo
+npm run server   # proxy local y servidor express
+npm run build    # build de producción
+npm run lint     # linter
+```
