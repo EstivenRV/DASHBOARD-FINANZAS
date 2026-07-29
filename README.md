@@ -65,10 +65,6 @@ npm start
 
 Esto levantará un servidor en `http://localhost:4000` y servirá la app junto con las rutas API necesarias.
 
-## Despliegue en Vercel
-
-El proyecto está preparado para desplegarse en Vercel usando las rutas API dentro de la carpeta `api/` y el archivo `vercel.json`.
-
 ## Scripts útiles
 
 ```bash
