@@ -15,22 +15,23 @@ export default async function handler(req, res) {
   requestUrl.searchParams.delete('path')
 
   const queryString = requestUrl.search
-  const target = `https://api.coingecko.com/api/v3/${pathFromRewrite}${queryString}`
+  const target = `https://api.binance.com/api/v3/${pathFromRewrite}${queryString}`
 
   try {
     const upstream = await fetch(target, {
       headers: { accept: 'application/json' },
     })
     const bodyText = await upstream.text()
+    const contentType = upstream.headers.get('content-type') || ''
 
     res.setHeader('Access-Control-Allow-Origin', '*')
-    res.setHeader('Cache-Control', 's-maxage=120, stale-while-revalidate=300')
+    res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=120')
     res.status(upstream.status)
 
-    const contentType = upstream.headers.get('content-type') || ''
     if (contentType.includes('application/json')) {
       return res.json(JSON.parse(bodyText))
     }
+
     return res.send(bodyText)
   } catch {
     return res.status(502).json({ error: 'Bad gateway' })

@@ -3,13 +3,14 @@ https://dashboard-finanzas-azure.vercel.app
 
 ## Incluye
 
-- Tipos de cambio con [Frankfurter API](https://www.frankfurter.app/)
-- Mercado cripto y series de tiempo con [CoinGecko API](https://www.coingecko.com/en/api)
+- Selector de moneda base y moneda de referencia para convertir montos entre USD, EUR, MXN, COP, ARS, BRL y GBP.
+- Tendencia histórica de USD/EUR frente a la moneda elegida para entender si el dólar o el euro suben o bajan.
+- Mercado cripto y series de tiempo con [Binance API](https://developers.binance.com/docs/binance-spot-api-docs/rest-api).
 - Gráficas con Recharts:
-  - Área: USD/MXN (20 días)
+  - Área: USD/EUR frente a la moneda seleccionada (20 días)
   - Línea: precio de BTC por hora
-  - Barras: comparativa de monedas
-  - Pie: distribución del portafolio
+  - Barras: comparación rápida entre varias monedas
+- Diseño minimalista orientado a información útil en lugar de un panel de finanzas ficticio.
 
 ## Ejecutar
 
@@ -55,7 +56,7 @@ npm start
 # escucha en http://localhost:4000
 ```
 
-Ahora abre `http://localhost:4000` y la aplicación servirá los archivos estáticos y las rutas API (`/api/frankfurter/*`, `/api/coingecko/*`) desde el mismo origen, evitando CORS en producción.
+Ahora abre `http://localhost:4000` y la aplicación servirá los archivos estáticos y las rutas API (`/api/frankfurter/*`, `/api/binance/*`, `/api/rates/latest`) desde el mismo origen, evitando CORS en producción.
 
 - `npm start` / `npm run server` — inicia el servidor Express (proxy + sirve `dist/` si existe)
 - `npm run lint` — ejecuta linter (oxlint)

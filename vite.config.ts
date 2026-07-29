@@ -8,17 +8,24 @@ export default defineConfig({
     proxy: {
       // Proxy Frankfurter API to avoid CORS in development
       '/api/frankfurter': {
-        target: 'https://api.frankfurter.app',
+        target: 'https://api.frankfurter.dev/v1',
         changeOrigin: true,
         secure: true,
         rewrite: (path) => path.replace(/^\/api\/frankfurter/, ''),
       },
-      // Proxy CoinGecko API to avoid CORS in development
-      '/api/coingecko': {
-        target: 'https://api.coingecko.com/api/v3',
+      // Proxy Binance API to avoid CORS and rate limiting in development
+      '/api/binance': {
+        target: 'https://api.binance.com/api/v3',
         changeOrigin: true,
         secure: true,
-        rewrite: (path) => path.replace(/^\/api\/coingecko/, ''),
+        rewrite: (path) => path.replace(/^\/api\/binance/, ''),
+      },
+      // Proxy USD rates API with COP support
+      '/api/rates/latest': {
+        target: 'https://open.er-api.com/v6/latest/USD',
+        changeOrigin: true,
+        secure: true,
+        rewrite: () => '',
       },
     },
   },

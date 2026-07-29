@@ -1,59 +1,92 @@
 .dashboard {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 280px 1fr;
-  background: radial-gradient(circle at top right, #1f2937, #0b0f18 46%);
-  color: #d7deed;
+  grid-template-columns: 300px 1fr;
+  background:
+    radial-gradient(circle at 100% 0%, #d9fced 0%, #f4f8f6 38%),
+    #f4f8f6;
+  color: #123129;
 }
 
 .sidebar {
-  border-right: 1px solid #1f2a3b;
-  padding: 2rem 1.4rem;
-  background: rgba(10, 14, 23, 0.92);
+  position: relative;
+  overflow: hidden;
+  border-right: 1px solid #bcecd9;
+  padding: 2rem 1.5rem;
+  background: linear-gradient(155deg, #19c98f 0%, #0dbb8f 62%, #0b9c8f 100%);
+  color: #edfff8;
+}
+
+.sidebar::after {
+  content: "";
+  position: absolute;
+  inset: auto -30% -45% 30%;
+  height: 60%;
+  transform: rotate(-22deg);
+  background: rgba(255, 255, 255, 0.14);
 }
 
 .sidebar-label {
-  margin: 0 0 0.4rem;
-  font-size: 0.8rem;
-  letter-spacing: 0.1rem;
+  position: relative;
+  z-index: 1;
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.16rem;
   text-transform: uppercase;
-  color: #8aa1c7;
+  color: rgba(238, 255, 249, 0.8);
 }
 
 .sidebar h1 {
+  position: relative;
+  z-index: 1;
   margin: 0;
-  font-size: 1.8rem;
-  color: #f3f7ff;
+  font-size: 2rem;
+  line-height: 1.08;
+  color: #ffffff;
 }
 
 .sidebar-subtitle {
-  color: #9db0d0;
-  font-size: 0.9rem;
+  position: relative;
+  z-index: 1;
   margin-top: 0.9rem;
-  line-height: 1.5;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: rgba(233, 255, 248, 0.92);
 }
 
 .status-box {
+  position: relative;
+  z-index: 1;
   display: grid;
   gap: 0.35rem;
   margin: 1.5rem 0;
-  background: #10192a;
-  border: 1px solid #22314a;
-  border-radius: 14px;
+  background: rgba(7, 90, 75, 0.23);
+  border: 1px solid rgba(226, 255, 245, 0.35);
+  border-radius: 16px;
   padding: 1rem;
   font-size: 0.85rem;
-  color: #bfd4f5;
+  color: #e3fff6;
+  backdrop-filter: blur(2px);
 }
 
 .refresh-button {
+  position: relative;
+  z-index: 1;
   width: 100%;
   border: 0;
-  border-radius: 12px;
+  border-radius: 999px;
   padding: 0.78rem 0.9rem;
-  background: linear-gradient(135deg, #4f7cf7, #9f72ff);
-  color: #f8fbff;
+  background: #073f34;
+  color: #f4fff9;
   font-weight: 600;
+  letter-spacing: 0.01em;
   cursor: pointer;
+  transition: transform 0.18s ease, background-color 0.18s ease;
+}
+
+.refresh-button:hover:enabled {
+  transform: translateY(-1px);
+  background: #0a4f42;
 }
 
 .refresh-button:disabled {
@@ -61,44 +94,86 @@
   opacity: 0.7;
 }
 
+.control-card {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 0.55rem;
+  margin: 1rem 0 1.2rem;
+  border: 1px solid rgba(227, 255, 245, 0.35);
+  border-radius: 16px;
+  padding: 0.95rem;
+  background: rgba(5, 74, 63, 0.23);
+  backdrop-filter: blur(2px);
+}
+
+.control-label {
+  font-size: 0.74rem;
+  letter-spacing: 0.12rem;
+  text-transform: uppercase;
+  color: rgba(236, 255, 247, 0.82);
+}
+
+.control-card select,
+.control-card input {
+  border: 0;
+  border-radius: 10px;
+  padding: 0.6rem 0.1rem;
+  color: #10392e;
+  font: inherit;
+}
+
+.helper-text {
+  margin: 0.1rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: rgba(232, 255, 247, 0.9);
+}
+
 .content {
-  padding: 1.4rem;
+  padding: 1rem;
 }
 
 .error-banner {
   margin: 0 0 1rem;
-  border: 1px solid #f43f5e66;
-  background: #4c102066;
-  border-radius: 10px;
+  border: 1px solid #ffb7b7;
+  background: #fff3f3;
+  border-radius: 12px;
   padding: 0.75rem 0.9rem;
-  color: #ffc1cb;
+  color: #8a2323;
 }
 
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(160px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1rem;
+  gap: 0.8rem;
+  margin-bottom: 0.8rem;
 }
 
 .kpi-card {
-  border: 1px solid #263349;
-  background: #101827bf;
-  border-radius: 14px;
-  padding: 1rem;
+  border: 1px solid #d5ece3;
+  background: #fcfffe;
+  border-radius: 16px;
+  padding: 0.9rem;
+  box-shadow: 0 12px 30px -24px rgba(6, 83, 63, 0.45);
+}
+
+.kpi-card.emphasis {
+  background: linear-gradient(135deg, #f2fff9 0%, #e8fef4 100%);
+  border-color: #b1e4ca;
 }
 
 .label {
   margin: 0;
-  color: #93a7c7;
-  font-size: 0.85rem;
+  color: #5a776d;
+  font-size: 0.84rem;
 }
 
 .value {
-  margin: 0.6rem 0 0;
-  font-size: 1.12rem;
+  margin: 0.58rem 0 0;
+  font-size: 1.15rem;
   font-weight: 700;
-  color: #eff4ff;
+  color: #173c32;
 }
 
 .delta {
@@ -107,30 +182,36 @@
 }
 
 .up {
-  color: #20d4c5;
+  color: #00a77b;
 }
 
 .down {
-  color: #ff6e8a;
+  color: #d65252;
 }
 
 .charts-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(280px, 1fr));
-  gap: 1rem;
+  gap: 0.8rem;
 }
 
 .chart-card {
-  border: 1px solid #263349;
-  border-radius: 14px;
-  padding: 1rem;
-  background: #101827bf;
+  border: 1px solid #d5ece3;
+  border-radius: 16px;
+  padding: 0.9rem 0.9rem 0.75rem;
+  background: #fcfffe;
+  box-shadow: 0 12px 30px -24px rgba(6, 83, 63, 0.45);
 }
 
 .chart-card h2 {
   margin: 0 0 0.8rem;
-  font-size: 1rem;
-  color: #eff4ff;
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: #173c32;
+}
+
+.chart-card.full-width {
+  grid-column: 1 / -1;
 }
 
 .legend {
@@ -146,7 +227,7 @@
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 0.45rem;
-  color: #a6b7d4;
+  color: #5d786f;
   font-size: 0.82rem;
 }
 
@@ -157,28 +238,29 @@
 }
 
 .coin-strip {
-  margin-top: 1rem;
+  margin-top: 0.8rem;
   display: grid;
   grid-template-columns: repeat(3, minmax(180px, 1fr));
-  gap: 1rem;
+  gap: 0.8rem;
 }
 
 .coin-card {
-  border: 1px solid #263349;
-  border-radius: 14px;
-  background: #101827bf;
-  padding: 0.9rem;
+  border: 1px solid #d5ece3;
+  border-radius: 16px;
+  background: #fcfffe;
+  padding: 0.8rem;
   display: grid;
-  gap: 0.4rem;
+  gap: 0.35rem;
+  box-shadow: 0 12px 30px -24px rgba(6, 83, 63, 0.45);
 }
 
 .coin-card p {
   margin: 0;
-  color: #9fb2d4;
+  color: #5d786f;
 }
 
 .coin-card strong {
-  color: #eff4ff;
+  color: #173c32;
 }
 
 .tag {
@@ -191,21 +273,21 @@
 }
 
 .tag.up {
-  background: #20d4c52b;
+  background: #e3faf0;
 }
 
 .tag.down {
-  background: #ff6e8a2d;
+  background: #ffecec;
 }
 
 .coin-card small {
-  color: #8498ba;
+  color: #6f8c83;
 }
 
 .loading-overlay {
   margin-top: 1rem;
   min-height: 1.5rem;
-  color: #8ea2c5;
+  color: #5a776d;
   font-size: 0.9rem;
 }
 
@@ -216,7 +298,7 @@
 
   .sidebar {
     border-right: 0;
-    border-bottom: 1px solid #1f2a3b;
+    border-bottom: 1px solid #bcecd9;
   }
 
   .kpi-grid {

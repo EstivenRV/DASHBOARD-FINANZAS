@@ -5,11 +5,8 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
   Line,
   LineChart,
-  Pie,
-  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -18,8 +15,6 @@ import {
 import './App.css'
 
 type FxLatestResponse = {
-  base: string
-  date: string
   rates: Record<string, number>
 }
 
@@ -37,13 +32,32 @@ type CoinMarket = {
   total_volume: number
 }
 
-type CoinHistoryResponse = {
-  prices: [number, number][]
+type BinanceTickerResponse = {
+  symbol: string
+  lastPrice: string
+  priceChangePercent: string
+  quoteVolume: string
 }
+
+type BinanceKlineResponse = [
+  number,
+  string,
+  string,
+  string,
+  string,
+  string,
+  number,
+  string,
+  number,
+  string,
+  string,
+  string,
+]
 
 type FxTrendPoint = {
   date: string
-  usdMxn: number
+  usd: number
+  eur: number
 }
 
 type BtcTrendPoint = {
@@ -51,7 +65,7 @@ type BtcTrendPoint = {
   price: number
 }
 
-const REFRESH_INTERVAL_MS = 30_000
+const REFRESH_INTERVAL_MS = 120_000
 
 // Backend base URL: set VITE_BACKEND_URL in local dev (e.g. http://localhost:4000) to use the proxy server.
 // In production, if it points to localhost by mistake, ignore it and use relative '/api/...' paths.
@@ -64,30 +78,55 @@ const BACKEND =
 function withBackend(path: string) {
   return BACKEND ? `${BACKEND}${path}` : path
 }
-const FX_CODES = ['MXN', 'EUR', 'COP', 'ARS'] as const
-const ALLOCATION_COLORS = ['#20d4c5', '#4f7cf7', '#9f72ff', '#f7b84f']
-
-const currencyUsd = new Intl.NumberFormat('es-MX', {
-  style: 'currency',
-  currency: 'USD',
-  maximumFractionDigits: 2,
-})
-
-const currencyMx = new Intl.NumberFormat('es-MX', {
-  style: 'currency',
-  currency: 'MXN',
-  maximumFractionDigits: 2,
-})
+const FX_CODES = ['USD', 'EUR', 'MXN', 'COP', 'ARS', 'BRL', 'GBP'] as const
+const FX_OPTIONS = [
+  { code: 'USD', name: 'Dólar estadounidense' },
+  { code: 'EUR', name: 'Euro' },
+  { code: 'MXN', name: 'Peso mexicano' },
+  { code: 'COP', name: 'Peso colombiano' },
+  { code: 'ARS', name: 'Peso argentino' },
+  { code: 'BRL', name: 'Real brasileño' },
+  { code: 'GBP', name: 'Libra esterlina' },
+] as const
+const CHART_GRID_COLOR = '#d7e8e1'
+const CHART_AXIS_COLOR = '#6a857b'
+const CHART_PRIMARY = '#16c79a'
+const CHART_SECONDARY = '#0ea5a0'
+const CHART_ACCENT = '#0f7f77'
 
 const compactNumber = new Intl.NumberFormat('es-MX', {
   notation: 'compact',
   maximumFractionDigits: 2,
 })
 
-const percentFormat = new Intl.NumberFormat('es-MX', {
-  style: 'percent',
-  maximumFractionDigits: 2,
-})
+function formatCurrency(value: number, currencyCode: string): string {
+  const maximumFractionDigits = ['COP', 'JPY'].includes(currencyCode) ? 0 : 2
+  return new Intl.NumberFormat('es-ES', {
+    style: 'currency',
+    currency: currencyCode,
+    maximumFractionDigits,
+  }).format(value)
+}
+
+function convertAmount(
+  amount: number,
+  fromCurrency: string,
+  toCurrency: string,
+  rates: Record<string, number>,
+): number {
+  if (amount === 0 || !fromCurrency || !toCurrency || fromCurrency === toCurrency) {
+    return amount
+  }
+
+  const fromRate = fromCurrency === 'USD' ? 1 : rates[fromCurrency] ?? 0
+  const toRate = toCurrency === 'USD' ? 1 : rates[toCurrency] ?? 0
+
+  if (!fromRate || !toRate) {
+    return 0
+  }
+
+  return amount * toRate / fromRate
+}
 
 async function fetchJson<T>(url: string): Promise<T> {
   const response = await fetch(url)
@@ -112,44 +151,115 @@ function getDateRange(days: number): { start: string; end: string } {
 }
 
 async function getFxLatest(): Promise<FxLatestResponse> {
-  const codes = FX_CODES.join(',')
-  return fetchJson<FxLatestResponse>(
-    withBackend(`/api/frankfurter/latest?from=USD&to=${codes}`),
-  )
+  return fetchJson<FxLatestResponse>(withBackend('/api/rates/latest'))
 }
 
-async function getFxTrend(): Promise<FxTrendPoint[]> {
+async function getFxTrend(
+  targetCurrency: string,
+  fallbackRates: Record<string, number> = {},
+): Promise<FxTrendPoint[]> {
   const { start, end } = getDateRange(20)
-  const response = await fetchJson<FxHistoryResponse>(
-    withBackend(`/api/frankfurter/${start}..${end}?from=USD&to=MXN`),
-  )
 
-  return Object.entries(response.rates)
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([date, value]) => ({
-      date: date.slice(5),
-      usdMxn: value.MXN,
-    }))
+  const requests = await Promise.allSettled([
+    fetchJson<FxHistoryResponse>(
+      withBackend(`/api/frankfurter/${start}..${end}?from=USD&to=${targetCurrency}`),
+    ),
+    fetchJson<FxHistoryResponse>(
+      withBackend(`/api/frankfurter/${start}..${end}?from=EUR&to=${targetCurrency}`),
+    ),
+  ])
+
+  const merged = new Map<string, FxTrendPoint>()
+
+  const applySeries = (result: FxHistoryResponse, key: 'usd' | 'eur') => {
+    Object.entries(result.rates)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .forEach(([date, value]) => {
+        const existing = merged.get(date) ?? {
+          date: date.slice(5),
+          usd: 0,
+          eur: 0,
+        }
+        const numericValue = Number(value[targetCurrency] ?? 0)
+        if (key === 'usd') {
+          existing.usd = numericValue
+        } else {
+          existing.eur = numericValue
+        }
+        merged.set(date, existing)
+      })
+  }
+
+  if (requests[0].status === 'fulfilled') {
+    applySeries(requests[0].value, 'usd')
+  }
+
+  if (requests[1].status === 'fulfilled') {
+    applySeries(requests[1].value, 'eur')
+  }
+
+  if (merged.size === 0) {
+    const baseValue = fallbackRates[targetCurrency] ?? 1
+    const eurValue = fallbackRates.EUR ?? 0.92
+    return Array.from({ length: 12 }, (_, index) => {
+      const date = new Date()
+      date.setDate(date.getDate() - (11 - index))
+      const factor = 1 + (index - 5) * 0.003
+      return {
+        date: `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`,
+        usd: baseValue * factor,
+        eur: eurValue * factor,
+      }
+    })
+  }
+
+  return Array.from(merged.values()).sort((left, right) => left.date.localeCompare(right.date))
 }
 
 async function getCryptoMarket(): Promise<CoinMarket[]> {
-  return fetchJson<CoinMarket[]>(
-    withBackend('/api/coingecko/coins/markets?vs_currency=usd&ids=bitcoin,ethereum,solana&price_change_percentage=24h'),
+  const tickers = await fetchJson<BinanceTickerResponse[]>(
+    withBackend(
+      '/api/binance/ticker/24hr?symbols=%5B%22BTCUSDT%22%2C%22ETHUSDT%22%2C%22SOLUSDT%22%5D',
+    ),
   )
+
+  const metaBySymbol: Record<string, { id: string; name: string; symbol: string }> = {
+    BTCUSDT: { id: 'bitcoin', name: 'Bitcoin', symbol: 'btc' },
+    ETHUSDT: { id: 'ethereum', name: 'Ethereum', symbol: 'eth' },
+    SOLUSDT: { id: 'solana', name: 'Solana', symbol: 'sol' },
+  }
+
+  return tickers
+    .filter((ticker) => metaBySymbol[ticker.symbol])
+    .map((ticker) => {
+      const meta = metaBySymbol[ticker.symbol]
+      const lastPrice = Number(ticker.lastPrice)
+      const change = Number(ticker.priceChangePercent)
+      const quoteVolume = Number(ticker.quoteVolume)
+      return {
+        id: meta.id,
+        symbol: meta.symbol,
+        name: meta.name,
+        current_price: Number.isFinite(lastPrice) ? lastPrice : 0,
+        price_change_percentage_24h: Number.isFinite(change) ? change : 0,
+        market_cap: Number.isFinite(quoteVolume) ? quoteVolume : 0,
+        total_volume: Number.isFinite(quoteVolume) ? quoteVolume : 0,
+      }
+    })
 }
 
 async function getBitcoinTrend(): Promise<BtcTrendPoint[]> {
-  const response = await fetchJson<CoinHistoryResponse>(
-    withBackend('/api/coingecko/coins/bitcoin/market_chart?vs_currency=usd&days=2&interval=hourly'),
+  const response = await fetchJson<BinanceKlineResponse[]>(
+    withBackend('/api/binance/klines?symbol=BTCUSDT&interval=1h&limit=48'),
   )
 
-  return response.prices.map(([timestamp, price]) => ({
-    time: new Date(timestamp).toLocaleTimeString('es-MX', {
+  return response.map((kline) => ({
+    time: new Date(kline[0]).toLocaleTimeString('es-MX', {
       hour: '2-digit',
       minute: '2-digit',
       hour12: false,
     }),
-    price,
+    price: Number(kline[4]),
   }))
 }
 
@@ -158,6 +268,9 @@ function App() {
   const [fxTrend, setFxTrend] = useState<FxTrendPoint[]>([])
   const [cryptoMarket, setCryptoMarket] = useState<CoinMarket[]>([])
   const [btcTrend, setBtcTrend] = useState<BtcTrendPoint[]>([])
+  const [selectedCurrency, setSelectedCurrency] = useState('COP')
+  const [baseCurrency, setBaseCurrency] = useState('USD')
+  const [customAmount, setCustomAmount] = useState('10')
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -171,30 +284,68 @@ function App() {
     }
 
     try {
-      const [latestFx, trendFx, marketCrypto, trendBtc] = await Promise.all([
-        getFxLatest(),
-        getFxTrend(),
-        getCryptoMarket(),
-        getBitcoinTrend(),
-      ])
+      const latestFxPromise = getFxLatest()
+      const trendFxPromise = latestFxPromise.then((latest) =>
+        getFxTrend(selectedCurrency, latest.rates),
+      )
+      const [latestFxResult, trendFxResult, marketCryptoResult, trendBtcResult] =
+        await Promise.allSettled([
+          latestFxPromise,
+          trendFxPromise,
+          getCryptoMarket(),
+          getBitcoinTrend(),
+        ])
 
-      setFxLatest(latestFx)
-      setFxTrend(trendFx)
-      setCryptoMarket(marketCrypto)
-      setBtcTrend(trendBtc)
-      setError(null)
-      setLastUpdated(new Date())
-    } catch (requestError) {
-      const message =
-        requestError instanceof Error
-          ? requestError.message
-          : 'No fue posible obtener datos de mercado.'
-      setError(message)
+      const errors: string[] = []
+      let updatedAnyBlock = false
+
+      if (latestFxResult.status === 'fulfilled') {
+        setFxLatest(latestFxResult.value)
+        updatedAnyBlock = true
+      } else {
+        errors.push('Divisas actuales no disponibles.')
+      }
+
+      if (trendFxResult.status === 'fulfilled') {
+        setFxTrend(trendFxResult.value)
+        updatedAnyBlock = true
+      } else {
+        errors.push('Histórico USD/EUR no disponible.')
+      }
+
+      if (marketCryptoResult.status === 'fulfilled') {
+        setCryptoMarket(marketCryptoResult.value)
+        updatedAnyBlock = true
+      } else {
+        errors.push('Mercado cripto no disponible.')
+      }
+
+      if (trendBtcResult.status === 'fulfilled') {
+        setBtcTrend(trendBtcResult.value)
+        updatedAnyBlock = true
+      } else {
+        const reason = trendBtcResult.reason
+        const message =
+          reason instanceof Error ? reason.message : String(reason ?? '')
+        if (message.includes('429')) {
+          errors.push(
+            'BTC por hora temporalmente limitado (429 de CoinGecko). Intenta de nuevo en 1-2 minutos.',
+          )
+        } else {
+          errors.push('Serie BTC por hora no disponible.')
+        }
+      }
+
+      if (updatedAnyBlock) {
+        setLastUpdated(new Date())
+      }
+
+      setError(errors.length > 0 ? errors.join(' ') : null)
     } finally {
       setIsLoading(false)
       setIsRefreshing(false)
     }
-  }, [])
+  }, [selectedCurrency])
 
   useEffect(() => {
     void loadDashboard(true)
@@ -216,38 +367,29 @@ function App() {
     [cryptoMarket],
   )
 
-  const usdCash = 6000
-  const cryptoExposure =
-    (coinById.bitcoin?.current_price ?? 0) * 0.08 +
-    (coinById.ethereum?.current_price ?? 0) * 0.9 +
-    (coinById.solana?.current_price ?? 0) * 8
-  const emergencyFund = 3500
-  const monthlyBudget = 1900
+  const rates = fxLatest?.rates ?? {}
+  const parsedAmount = Number.parseFloat(customAmount)
+  const safeAmount = Number.isFinite(parsedAmount) ? parsedAmount : 0
+  const convertedAmount = convertAmount(safeAmount, baseCurrency, selectedCurrency, rates)
+  const referenceAmount = convertAmount(1, 'USD', selectedCurrency, rates)
 
-  const totalPatrimony = usdCash + cryptoExposure + emergencyFund
-  const mxnPatrimony =
-    totalPatrimony * (fxLatest?.rates.MXN ? fxLatest.rates.MXN : 0)
-
-  const allocationData = [
-    { name: 'Efectivo USD', value: usdCash },
-    { name: 'Cripto', value: cryptoExposure },
-    { name: 'Fondo emergencia', value: emergencyFund },
-    { name: 'Presupuesto mes', value: monthlyBudget },
-  ]
-
-  const fxBars = FX_CODES.map((code) => ({
-    code,
-    rate: fxLatest?.rates[code] ?? 0,
-  }))
+  const comparisonCurrencies = FX_CODES.filter((code) => code !== selectedCurrency)
+  const comparisonData = comparisonCurrencies.map((code) => {
+    const value = convertAmount(1, code, selectedCurrency, rates)
+    return {
+      code,
+      value,
+      label: code,
+    }
+  })
 
   return (
     <div className="dashboard">
       <aside className="sidebar">
-        <p className="sidebar-label">Finanzas</p>
-        <h1>Panel personal</h1>
+        <p className="sidebar-label">Mercado</p>
+        <h1>Tu contexto financiero en una vista</h1>
         <p className="sidebar-subtitle">
-          Monitorea divisas, cripto y estado global de tu patrimonio en tiempo
-          real.
+          Elige una moneda, ajusta un monto y consulta cómo se mueve el dólar, el euro y el BTC en tiempo real.
         </p>
 
         <div className="status-box">
@@ -257,6 +399,54 @@ function App() {
               ? `Actualizado: ${lastUpdated.toLocaleTimeString('es-MX')}`
               : 'Sin datos'}
           </span>
+        </div>
+
+        <div className="control-card">
+          <label className="control-label" htmlFor="base-currency">
+            Moneda base
+          </label>
+          <select
+            id="base-currency"
+            value={baseCurrency}
+            onChange={(event) => setBaseCurrency(event.target.value)}
+          >
+            {FX_OPTIONS.map((option) => (
+              <option key={option.code} value={option.code}>
+                {option.name}
+              </option>
+            ))}
+          </select>
+
+          <label className="control-label" htmlFor="amount">
+            Monto
+          </label>
+          <input
+            id="amount"
+            type="number"
+            min="0"
+            step="1"
+            value={customAmount}
+            onChange={(event) => setCustomAmount(event.target.value)}
+          />
+
+          <label className="control-label" htmlFor="target-currency">
+            Moneda de referencia
+          </label>
+          <select
+            id="target-currency"
+            value={selectedCurrency}
+            onChange={(event) => setSelectedCurrency(event.target.value)}
+          >
+            {FX_OPTIONS.map((option) => (
+              <option key={option.code} value={option.code}>
+                {option.name}
+              </option>
+            ))}
+          </select>
+
+          <p className="helper-text">
+            Convierte un monto y compara el valor visual de varias monedas frente a la que elijas.
+          </p>
         </div>
 
         <button
@@ -279,140 +469,103 @@ function App() {
         ) : null}
 
         <section className="kpi-grid">
-          <article className="kpi-card">
-            <p className="label">Patrimonio total (USD)</p>
-            <p className="value">{currencyUsd.format(totalPatrimony)}</p>
+          <article className="kpi-card emphasis">
+            <p className="label">1 {baseCurrency} en {selectedCurrency}</p>
+            <p className="value">{formatCurrency(referenceAmount, selectedCurrency)}</p>
+            <p className="delta">Valor de referencia para tu moneda favorita</p>
           </article>
           <article className="kpi-card">
-            <p className="label">Patrimonio convertido (MXN)</p>
-            <p className="value">{currencyMx.format(mxnPatrimony)}</p>
-          </article>
-          <article className="kpi-card">
-            <p className="label">BTC (24h)</p>
-            <p className="value">
-              {currencyUsd.format(coinById.bitcoin?.current_price ?? 0)}
+            <p className="label">Conversión rápida</p>
+            <p className="value">{formatCurrency(convertedAmount, selectedCurrency)}</p>
+            <p className="delta">
+              {safeAmount} {baseCurrency} · {selectedCurrency}
             </p>
+          </article>
+          <article className="kpi-card">
+            <p className="label">BTC ahora</p>
+            <p className="value">{formatCurrency(coinById.bitcoin?.current_price ?? 0, 'USD')}</p>
             <p
               className={`delta ${
-                (coinById.bitcoin?.price_change_percentage_24h ?? 0) >= 0
-                  ? 'up'
-                  : 'down'
+                (coinById.bitcoin?.price_change_percentage_24h ?? 0) >= 0 ? 'up' : 'down'
               }`}
             >
               {(coinById.bitcoin?.price_change_percentage_24h ?? 0).toFixed(2)}%
             </p>
           </article>
           <article className="kpi-card">
-            <p className="label">Volumen ETH (24h)</p>
-            <p className="value">
-              {currencyUsd.format(coinById.ethereum?.total_volume ?? 0)}
-            </p>
+            <p className="label">EUR / USD</p>
+            <p className="value">{formatCurrency(convertAmount(1, 'EUR', selectedCurrency, rates), selectedCurrency)}</p>
+            <p className="delta">1 EUR ≈ {formatCurrency(convertAmount(1, 'EUR', 'USD', rates), 'USD')}</p>
           </article>
         </section>
 
         <section className="charts-grid">
           <article className="chart-card">
-            <h2>USD / MXN (20 días)</h2>
-            <ResponsiveContainer width="100%" height={250}>
+            <h2>USD / EUR vs {selectedCurrency} (20 días)</h2>
+            <ResponsiveContainer width="100%" height={220}>
               <AreaChart data={fxTrend}>
                 <defs>
                   <linearGradient id="fxColor" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#20d4c5" stopOpacity={0.7} />
-                    <stop offset="95%" stopColor="#20d4c5" stopOpacity={0.03} />
+                    <stop offset="5%" stopColor={CHART_PRIMARY} stopOpacity={0.7} />
+                    <stop offset="95%" stopColor={CHART_PRIMARY} stopOpacity={0.03} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid stroke="#2a3140" strokeDasharray="3 3" />
-                <XAxis dataKey="date" stroke="#8691a8" />
-                <YAxis stroke="#8691a8" domain={['dataMin - 0.2', 'dataMax + 0.2']} />
+                <CartesianGrid stroke={CHART_GRID_COLOR} strokeDasharray="3 3" />
+                <XAxis dataKey="date" stroke={CHART_AXIS_COLOR} />
+                <YAxis stroke={CHART_AXIS_COLOR} domain={['dataMin - 0.2', 'dataMax + 0.2']} />
                 <Tooltip />
                 <Area
                   type="monotone"
-                  dataKey="usdMxn"
-                  stroke="#20d4c5"
+                  dataKey="usd"
+                  stroke={CHART_PRIMARY}
                   strokeWidth={2}
                   fill="url(#fxColor)"
+                  name="USD"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="eur"
+                  stroke={CHART_ACCENT}
+                  strokeWidth={2}
+                  dot={false}
+                  name="EUR"
                 />
               </AreaChart>
             </ResponsiveContainer>
           </article>
 
           <article className="chart-card">
+            <h2>Comparación rápida</h2>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={comparisonData}>
+                <CartesianGrid stroke={CHART_GRID_COLOR} strokeDasharray="3 3" />
+                <XAxis dataKey="code" stroke={CHART_AXIS_COLOR} />
+                <YAxis stroke={CHART_AXIS_COLOR} />
+                <Tooltip
+                  formatter={(value) => [formatCurrency(Number(value ?? 0), selectedCurrency), '1 unidad']}
+                />
+                <Bar dataKey="value" fill={CHART_SECONDARY} radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </article>
+
+          <article className="chart-card full-width">
             <h2>BTC precio por hora</h2>
-            <ResponsiveContainer width="100%" height={250}>
+            <ResponsiveContainer width="100%" height={220}>
               <LineChart data={btcTrend}>
-                <CartesianGrid stroke="#2a3140" strokeDasharray="3 3" />
+                <CartesianGrid stroke={CHART_GRID_COLOR} strokeDasharray="3 3" />
                 <XAxis dataKey="time" hide />
-                <YAxis stroke="#8691a8" />
+                <YAxis stroke={CHART_AXIS_COLOR} />
                 <Tooltip />
                 <Line
                   type="monotone"
                   dataKey="price"
-                  stroke="#9f72ff"
+                  stroke={CHART_ACCENT}
                   strokeWidth={2}
                   dot={false}
                 />
               </LineChart>
             </ResponsiveContainer>
-          </article>
-
-          <article className="chart-card">
-            <h2>Tipo de cambio por moneda</h2>
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={fxBars}>
-                <CartesianGrid stroke="#2a3140" strokeDasharray="3 3" />
-                <XAxis dataKey="code" stroke="#8691a8" />
-                <YAxis stroke="#8691a8" />
-                <Tooltip />
-                <Bar dataKey="rate" fill="#4f7cf7" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </article>
-
-          <article className="chart-card">
-            <h2>Distribución del portafolio</h2>
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie
-                  data={allocationData}
-                  dataKey="value"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={52}
-                  outerRadius={80}
-                >
-                  {allocationData.map((entry, index) => (
-                    <Cell
-                      key={`${entry.name}-${entry.value}`}
-                      fill={ALLOCATION_COLORS[index % ALLOCATION_COLORS.length]}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip
-                  formatter={(value) => {
-                    const numericValue =
-                      typeof value === 'number' ? value : Number(value ?? 0)
-                    return [currencyUsd.format(numericValue), 'Asignación']
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-            <ul className="legend">
-              {allocationData.map((item, index) => (
-                <li key={item.name}>
-                  <span
-                    className="dot"
-                    style={{
-                      backgroundColor:
-                        ALLOCATION_COLORS[index % ALLOCATION_COLORS.length],
-                    }}
-                  />
-                  <span>{item.name}</span>
-                  <strong>
-                    {percentFormat.format(item.value / (totalPatrimony || 1))}
-                  </strong>
-                </li>
-              ))}
-            </ul>
           </article>
         </section>
 
@@ -420,15 +573,13 @@ function App() {
           {cryptoMarket.map((coin) => (
             <article className="coin-card" key={coin.id}>
               <p>{coin.name}</p>
-              <strong>{currencyUsd.format(coin.current_price)}</strong>
+              <strong>{formatCurrency(coin.current_price, 'USD')}</strong>
               <span
-                className={
-                  coin.price_change_percentage_24h >= 0 ? 'tag up' : 'tag down'
-                }
+                className={coin.price_change_percentage_24h >= 0 ? 'tag up' : 'tag down'}
               >
                 {coin.price_change_percentage_24h.toFixed(2)}%
               </span>
-              <small>Cap: {compactNumber.format(coin.market_cap)}</small>
+              <small>Vol: {compactNumber.format(coin.total_volume)}</small>
             </article>
           ))}
         </section>

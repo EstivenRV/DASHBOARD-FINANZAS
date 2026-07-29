@@ -36,7 +36,7 @@ app.use('/api/frankfurter', async (req, res) => {
     // originalUrl contains path + query
     const original = req.originalUrl || req.url
     const targetPath = original.replace(/^\/api\/frankfurter/, '') || ''
-    const target = `https://api.frankfurter.app${targetPath}`
+    const target = `https://api.frankfurter.dev/v1${targetPath}`
     const cacheKey = `frankfurter:${target}`
 
     const cached = getCache(cacheKey)
@@ -54,19 +54,38 @@ app.use('/api/frankfurter', async (req, res) => {
   }
 })
 
-app.use('/api/coingecko', async (req, res) => {
+app.use('/api/binance', async (req, res) => {
   try {
     const original = req.originalUrl || req.url
-    const targetPath = original.replace(/^\/api\/coingecko/, '') || ''
-    const target = `https://api.coingecko.com/api/v3${targetPath}`
-    const cacheKey = `coingecko:${target}`
+    const targetPath = original.replace(/^\/api\/binance/, '') || ''
+    const target = `https://api.binance.com/api/v3${targetPath}`
+    const cacheKey = `binance:${target}`
 
     const cached = getCache(cacheKey)
     if (cached) return res.json(cached)
 
     const response = await axios.get(target, { timeout: 10_000 })
-    // CoinGecko has rate limits; cache a bit longer to reduce requests
-    setCache(cacheKey, response.data, 30 * 1000) // cache 30s
+    setCache(cacheKey, response.data, 60 * 1000) // cache 60s
+    res.json(response.data)
+  } catch (err) {
+    if (axios.isAxiosError(err) && err.response) {
+      res.status(err.response.status).json({ error: err.response.statusText })
+    } else {
+      res.status(502).json({ error: 'Bad gateway' })
+    }
+  }
+})
+
+app.get('/api/rates/latest', async (req, res) => {
+  try {
+    const target = 'https://open.er-api.com/v6/latest/USD'
+    const cacheKey = 'rates:usd-latest'
+
+    const cached = getCache(cacheKey)
+    if (cached) return res.json(cached)
+
+    const response = await axios.get(target, { timeout: 10_000 })
+    setCache(cacheKey, response.data, 60 * 60 * 1000) // cache 1h
     res.json(response.data)
   } catch (err) {
     if (axios.isAxiosError(err) && err.response) {

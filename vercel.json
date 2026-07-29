@@ -7,6 +7,14 @@
     {
       "source": "/api/coingecko/:path*",
       "destination": "/api/coingecko?path=:path*"
+    },
+    {
+      "source": "/api/binance/:path*",
+      "destination": "/api/binance?path=:path*"
+    },
+    {
+      "source": "/api/rates/latest",
+      "destination": "/api/rates"
     }
   ]
 }
