@@ -4,7 +4,6 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: '/DASHBOARD-FINANZAS/',
   server: {
     proxy: {
       // Proxy Frankfurter API to avoid CORS in development
